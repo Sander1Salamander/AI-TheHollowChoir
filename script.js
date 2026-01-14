@@ -1,13 +1,40 @@
-// Main application script
-// Loading screen handler - simple and reliable
-setTimeout(() => {
-    console.log('Hiding loading screen');
+// Main application script - execute immediately
+(() => {
     const loadingScreen = document.getElementById('loadingScreen');
-    if (loadingScreen) {
-        loadingScreen.style.display = 'none';
-        loadingScreen.remove();
+    
+    // If loading screen doesn't exist, nothing to do
+    if (!loadingScreen) return;
+    
+    const startTime = Date.now();
+    const minimumDisplayTime = 4000; // 4 seconds minimum
+    
+    console.log('Loading screen script started at:', startTime);
+    
+    function hideLoadingScreen() {
+        const elapsedTime = Date.now() - startTime;
+        console.log('Hiding loading screen after:', elapsedTime + 'ms');
+        
+        loadingScreen.classList.add('hidden');
+        setTimeout(() => {
+            if (loadingScreen.parentNode) {
+                loadingScreen.remove();
+            }
+        }, 1000);
     }
-}, 500);
+    
+    // Force hide after minimum time regardless of load state
+    setTimeout(() => {
+        hideLoadingScreen();
+    }, minimumDisplayTime);
+    
+    // Also hide when window is fully loaded (if it takes longer)
+    window.addEventListener('load', () => {
+        const elapsedTime = Date.now() - startTime;
+        if (elapsedTime >= minimumDisplayTime) {
+            hideLoadingScreen();
+        }
+    });
+})();
 
 class AudioPlayer {
     constructor() {
