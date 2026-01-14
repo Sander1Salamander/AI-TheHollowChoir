@@ -1785,6 +1785,40 @@ section {
     transition: opacity 0.3s ease;
 }
 
+/* Game note animations */
+.note {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background: var(--gradient-1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 0.9rem;
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.6);
+    z-index: 5;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.hit-effect {
+    pointer-events: none;
+}
+
+@keyframes float-up {
+    0% {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -150%);
+    }
+}
+
 .game-message.show {
     opacity: 1;
 }

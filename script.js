@@ -709,8 +709,10 @@ class RhythmGame {
         this.highCombo = parseInt(localStorage.getItem('hollowHighCombo') || '0');
         
         this.gameInterval = null;
+        this.animationId = null;
         this.notes = [];
         this.isGameActive = false;
+        this.noteSpeed = 2;
         
         this.setupGameElements();
         this.setupGameEventListeners();
@@ -729,7 +731,11 @@ class RhythmGame {
     
     setupGameEventListeners() {
         this.startGameBtn.addEventListener('click', () => {
-            this.startGame();
+            if (this.isGameActive) {
+                this.stopGame();
+            } else {
+                this.startGame();
+            }
         });
         
         document.addEventListener('keydown', (e) => {
@@ -745,51 +751,87 @@ class RhythmGame {
         this.combo = 0;
         this.isGameActive = true;
         this.notes = [];
+        
+        // Clear any existing notes
+        this.clearNotes();
+        
         this.gameInterval = setInterval(() => {
             this.generateNote();
-        }, 500);
+        }, 800);
         
         this.startGameBtn.textContent = 'Stop Game';
         this.gameMessage.textContent = 'Game started! Press D, F, J, K to hit notes.';
         
         this.gameAudio.play();
-        
         this.updateScore();
+        
+        // Start animation loop
+        this.animate();
     }
     
     stopGame() {
         this.isGameActive = false;
         clearInterval(this.gameInterval);
+        cancelAnimationFrame(this.animationId);
         
         this.gameAudio.pause();
         this.startGameBtn.textContent = 'Start Game';
-        this.gameMessage.textContent = 'Game stopped!';
+        this.gameMessage.textContent = `Game stopped! Final Score: ${this.score}`;
         
         // Clear remaining notes
         this.clearNotes();
     }
     
     generateNote() {
-        if (Math.random() < 0.3) {
-            const lanes = ['d', 'f', 'j', 'k'];
-            const lane = lanes[Math.floor(Math.random() * lanes.length)];
-            const note = {
-                lane: lane,
-                time: Date.now(),
-                hit: false
-            };
-            
-            this.notes.push(note);
-            
-            // Create visual note element
-            const noteElement = document.createElement('div');
-            noteElement.className = 'game-note';
-            noteElement.textContent = lane.toUpperCase();
-            noteElement.style.left = this.getLanePosition(lane) + 'px';
-            noteElement.dataset.lane = lane;
-            
-            this.gameBoard.appendChild(noteElement);
+        const lanes = ['d', 'f', 'j', 'k'];
+        const lane = lanes[Math.floor(Math.random() * lanes.length)];
+        
+        const note = {
+            lane: lane,
+            y: -30,
+            hit: false,
+            element: null
+        };
+        
+        // Create visual note element
+        const noteElement = document.createElement('div');
+        noteElement.className = 'note';
+        noteElement.textContent = lane.toUpperCase();
+        noteElement.style.top = note.y + 'px';
+        noteElement.dataset.lane = lane;
+        
+        // Add to lane instead of game board
+        const laneElement = document.querySelector(`.lane[data-key="${lane}"]`);
+        if (laneElement) {
+            laneElement.appendChild(noteElement);
         }
+        
+        note.element = noteElement;
+        this.notes.push(note);
+    }
+    
+    animate() {
+        if (!this.isGameActive) return;
+        
+        // Update note positions
+        this.notes.forEach((note, index) => {
+            if (!note.hit && note.element) {
+                note.y += this.noteSpeed;
+                note.element.style.top = note.y + 'px';
+                
+                // Remove notes that have gone off screen
+                if (note.y > 400) {
+                    if (!note.hit) {
+                        this.combo = 0; // Reset combo on miss
+                        this.updateScore();
+                    }
+                    note.element.remove();
+                    this.notes.splice(index, 1);
+                }
+            }
+        });
+        
+        this.animationId = requestAnimationFrame(() => this.animate());
     }
     
     handleKeyPress(key) {
@@ -801,50 +843,98 @@ class RhythmGame {
     }
     
     checkNoteHit(lane) {
-        const currentTime = Date.now();
-        const hitThreshold = 100; // 100ms window
+        const hitZoneMin = 320;
+        const hitZoneMax = 380;
         
-        for (let i = this.notes.length - 1; i >= 0; i--) {
-            const note = this.notes[i];
-            
-            if (note.lane === lane && !note.hit && currentTime - note.time < hitThreshold) {
-                note.hit = true;
-                this.score += 10;
-                this.combo++;
-                
-                // Create hit effect
-                const hitEffect = document.createElement('div');
-                hitEffect.className = 'hit-effect';
-                hitEffect.style.left = this.getLanePosition(lane) + 'px';
-                hitEffect.textContent = '✓';
-                this.gameBoard.appendChild(hitEffect);
-                
-                setTimeout(() => {
-                    hitEffect.remove();
-                }, 300);
-                
-                break;
+        // Find the closest note in the correct lane
+        let closestNote = null;
+        let closestDistance = Infinity;
+        
+        this.notes.forEach(note => {
+            if (note.lane === lane && !note.hit && note.y >= hitZoneMin - 50 && note.y <= hitZoneMax + 50) {
+                const distance = Math.abs(note.y - (hitZoneMin + hitZoneMax) / 2);
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestNote = note;
+                }
             }
-        }
+        });
         
-        this.updateScore();
+        if (closestNote && closestDistance < 40) {
+            closestNote.hit = true;
+            this.score += 10;
+            this.combo++;
+            
+            // Add hit animation
+            closestNote.element.classList.add('perfect');
+            
+            // Flash the lane key
+            const laneKey = document.querySelector(`.lane[data-key="${lane}"] .lane-key`);
+            if (laneKey) {
+                laneKey.classList.add('active');
+                setTimeout(() => {
+                    laneKey.classList.remove('active');
+                }, 100);
+            }
+            
+            // Create hit effect
+            this.createHitEffect(lane, closestNote.element);
+            
+            // Remove note after animation
+            setTimeout(() => {
+                if (closestNote.element && closestNote.element.parentNode) {
+                    closestNote.element.remove();
+                }
+                const index = this.notes.indexOf(closestNote);
+                if (index > -1) {
+                    this.notes.splice(index, 1);
+                }
+            }, 500);
+            
+            this.updateScore();
+        }
+    }
+    
+    createHitEffect(lane, noteElement) {
+        const hitEffect = document.createElement('div');
+        hitEffect.className = 'hit-effect';
+        hitEffect.textContent = '+10';
+        hitEffect.style.cssText = `
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: #10b981;
+            font-weight: bold;
+            font-size: 1.5rem;
+            z-index: 100;
+            animation: float-up 1s ease-out forwards;
+        `;
+        
+        const laneElement = document.querySelector(`.lane[data-key="${lane}"]`);
+        if (laneElement) {
+            laneElement.appendChild(hitEffect);
+            
+            setTimeout(() => {
+                if (hitEffect.parentNode) {
+                    hitEffect.remove();
+                }
+            }, 1000);
+        }
     }
     
     clearNotes() {
-        const noteElements = this.gameBoard.querySelectorAll('.game-note');
-        noteElements.forEach(element => {
-            element.remove();
+        // Remove all note elements
+        this.notes.forEach(note => {
+            if (note.element && note.element.parentNode) {
+                note.element.remove();
+            }
         });
         this.notes = [];
-    }
-    
-    getLanePosition(lane) {
-        const laneElement = document.querySelector(`.lane[data-key="${lane}"]`);
-        if (laneElement) {
-            const rect = laneElement.getBoundingClientRect();
-            return rect.left;
-        }
-        return 0;
+        
+        // Remove any remaining hit effects
+        const hitEffects = this.gameBoard.querySelectorAll('.hit-effect');
+        hitEffects.forEach(effect => effect.remove());
     }
     
     updateScore() {
