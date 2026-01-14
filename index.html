@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Hollow Choir</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="logo-loading">The Hollow Choir</div>
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+            <div class="loading-text">Loading echoes from the void...</div>
+        </div>
+    </div>
+    
+    <div class="stars-background"></div>
+    
+    <header class="hero-section">
+        <nav class="navbar">
+            <div class="logo">The Hollow Choir</div>
+            <ul class="nav-links">
+                <li><a href="#home">Home</a></li>
+                <li><a href="#music">Music</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+        
+        <div class="hero-content" id="home">
+            <h1 class="band-name animate-text">The Hollow Choir</h1>
+            <p class="tagline">Echoes from the Void</p>
+            <button class="cta-button" onclick="scrollToMusic()">Listen Now</button>
+        </div>
+    </header>
+
+    <main>
+        <section id="music" class="music-section">
+            <div class="container">
+                <h2 class="section-title">Our Music</h2>
+                <div class="player-container">
+                    <div class="album-art">
+                        <div class="vinyl-record spinning"></div>
+                        <div class="album-glow"></div>
+                    </div>
+                    
+                    <div class="audio-player">
+                        <h3 class="track-title">The Hollow Choir</h3>
+
+                        <div class="audio-controls">
+                            <button id="prevBtn" class="control-btn">
+                                <span class="icon">⏮</span>
+                            </button>
+                            <button id="playPauseBtn" class="control-btn play-btn">
+                                <span class="icon">▶</span>
+                            </button>
+                            <button id="nextBtn" class="control-btn">
+                                <span class="icon">⏭</span>
+                            </button>
+                        </div>
+                        
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div class="progress" id="progressBar"></div>
+                            </div>
+                            <div class="time-display">
+                                <span id="currentTime">0:00</span>
+                                <span id="duration">0:00</span>
+                            </div>
+                        </div>
+                        
+                        <div class="volume-control">
+                            <button id="volumeBtn" class="control-btn">
+                                <span class="icon">🔊</span>
+                            </button>
+                            <input type="range" id="volumeSlider" min="0" max="100" value="70">
+                        </div>
+                        
+                        <div class="player-actions">
+                            <button id="settingsBtn" class="control-btn settings-btn">
+                                <span class="icon">⚙️</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="song-list">
+                        <h4>Playlist</h4>
+                        <ul id="playlistItems" class="playlist">
+                            <!-- Songs will be populated by JavaScript -->
+                        </ul>
+                    </div>
+                    
+                    <div class="visualizer">
+                        <canvas id="audioCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="game" class="game-section">
+            <div class="container">
+                <h2 class="section-title">Hollow Beats</h2>
+                <div class="game-container">
+                    <div class="game-header">
+                        <div class="game-score">
+                            <span>Score: </span>
+                            <span id="gameScore">0</span>
+                        </div>
+                        <div class="game-combo">
+                            <span>Combo: </span>
+                            <span id="gameCombo">0x</span>
+                        </div>
+                        <div class="game-high-combo">
+                            <span>Best Combo: </span>
+                            <span id="gameHighCombo">0x</span>
+                        </div>
+                        <button id="startGameBtn" class="game-btn">Start Game</button>
+                    </div>
+                    
+                    <div class="game-board">
+                    <div class="game-lanes">
+                        <div class="lane" data-key="d">
+                            <div class="lane-key">D</div>
+                            <div class="lane-track"></div>
+                        </div>
+                        <div class="lane" data-key="f">
+                            <div class="lane-key">F</div>
+                            <div class="lane-track"></div>
+                        </div>
+                        <div class="lane" data-key="j">
+                            <div class="lane-key">J</div>
+                            <div class="lane-track"></div>
+                        </div>
+                        <div class="lane" data-key="k">
+                            <div class="lane-key">K</div>
+                            <div class="lane-track"></div>
+                        </div>
+                    </div>
+                        
+                        <div class="hit-zone">
+                            <div class="hit-line"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="game-feedback">
+                        <div id="gameMessage" class="game-message"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="about" class="about-section">
+            <div class="container">
+                <h2 class="section-title">About The Hollow Choir</h2>
+                <div class="about-content">
+                    <div class="band-story">
+                        <h3>Our Story</h3>
+                        <div class="band-photo">
+                            <img src="assets/Band_Picture.png" alt="The Hollow Choir Band">
+                        </div>
+                        <p>In the depths of 2024, when the world grew quiet and silence became deafening, four souls discovered an abandoned cathedral deep within the digital realm. Its vaulted ceilings held echoes of forgotten hymns, and its stained-glass windows pulsed with residual energy from countless forgotten dreams.</p>
+                        <p>The Vocalist, drawn by the cathedral's haunting acoustics, found her voice could awaken the sleeping harmonies dormant in these ancient walls. The Guitarist discovered that his strings could summon the shadows dancing in the cathedral's corners, while the Keyboardist learned to channel the cathedral's ghostly choir through his keys. The Drummer became the heartbeat of this sacred space, his rhythms echoing like the footsteps of spirits long departed.</p>
+                        <p>Together, they became The Hollow Choir - not just four musicians, but conduits for the voices trapped between worlds. Their music is a bridge between the living and the forgotten, a lighthouse in the void where lost souls find their chorus. Each note they play is a story whispered from beyond the veil, each harmony a prayer answered by the echoes themselves.</p>
+                    </div>
+                    
+                    <div class="band-members">
+                        <h3>The Choir</h3>
+                        <div class="members-grid">
+                            <div class="member-card">
+                                <div class="member-avatar">🎤</div>
+                                <h4>The Echo Weaver</h4>
+                                <p>Awakens sleeping harmonies with a voice that bridges worlds</p>
+                            </div>
+                            <div class="member-card">
+                                <div class="member-avatar">🎸</div>
+                                <h4>The Shadow Summoner</h4>
+                                <p>Commands the dancing shadows with strings of spectral light</p>
+                            </div>
+                            <div class="member-card">
+                                <div class="member-avatar">🎹</div>
+                                <h4>The Ghost Channeler</h4>
+                                <p>Channels the cathedral's ghostly choir through ivory keys</p>
+                            </div>
+                            <div class="member-card">
+                                <div class="member-avatar">🥁</div>
+                                <h4>The Spirit Heartbeat</h4>
+                                <p>The rhythm that echoes footsteps of departed souls</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="contact" class="contact-section">
+            <div class="container">
+                <h2 class="section-title">Get In Touch</h2>
+                <div class="contact-content">
+                    <div class="contact-info">
+                        <h3>Connect With Us</h3>
+                        <div class="social-links">
+                            <a href="https://twitter.com" target="_blank" class="social-link">
+                                <span class="icon">🐦</span>
+                                Twitter
+                            </a>
+                            <a href="https://instagram.com" target="_blank" class="social-link">
+                                <span class="icon">📷</span>
+                                Instagram
+                            </a>
+                            <a href="https://spotify.com" target="_blank" class="social-link">
+                                <span class="icon">🎵</span>
+                                Spotify
+                            </a>
+                        </div>
+                    </div>
+                    <div class="newsletter">
+                        <h3>Join the Choir</h3>
+                        <p>Get updates on new releases and exclusive content</p>
+                        <form id="newsletterForm" class="newsletter-form">
+                            <input type="email" placeholder="Your email" required>
+                            <button type="submit">Subscribe</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    </main>
+
+    <!-- Band Picture Modal -->
+    <div id="bandModal" class="band-modal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeModal">&times;</button>
+            <div class="modal-image-container">
+                <img src="assets/Band_Picture.png" alt="The Hollow Choir Band" class="modal-image">
+            </div>
+        </div>
+        <div class="modal-backdrop"></div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="settings-modal">
+        <div class="settings-content">
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <button class="settings-close" id="closeSettings">&times;</button>
+            </div>
+            
+            <div class="settings-tabs">
+                <button class="tab-btn active" data-tab="themes">Themes</button>
+                <button class="tab-btn" data-tab="audio">Audio</button>
+                <button class="tab-btn" data-tab="visualizer">Visualizer</button>
+            </div>
+            
+            <div class="settings-panels">
+                <div class="settings-panel active" id="themes-panel">
+                    <h3>Color Themes</h3>
+                    <div class="theme-grid">
+                        <div class="theme-option" data-theme="dark">
+                            <div class="theme-preview dark-theme"></div>
+                            <span>Dark</span>
+                        </div>
+                        <div class="theme-option" data-theme="light">
+                            <div class="theme-preview light-theme"></div>
+                            <span>Light</span>
+                        </div>
+                        <div class="theme-option" data-theme="purple">
+                            <div class="theme-preview purple-theme"></div>
+                            <span>Purple</span>
+                        </div>
+                        <div class="theme-option" data-theme="blue">
+                            <div class="theme-preview blue-theme"></div>
+                            <span>Blue</span>
+                        </div>
+                        <div class="theme-option" data-theme="green">
+                            <div class="theme-preview green-theme"></div>
+                            <span>Green</span>
+                        </div>
+                        <div class="theme-option" data-theme="red">
+                            <div class="theme-preview red-theme"></div>
+                            <span>Red</span>
+                        </div>
+                        <div class="theme-option" data-theme="cyberpunk">
+                            <div class="theme-preview cyberpunk-theme"></div>
+                            <span>Cyberpunk</span>
+                        </div>
+                        <div class="theme-option" data-theme="sunset">
+                            <div class="theme-preview sunset-theme"></div>
+                            <span>Sunset</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="settings-panel" id="audio-panel">
+                    <h3>Audio Settings</h3>
+                    <div class="setting-item">
+                        <label>Crossfade Duration</label>
+                        <input type="range" id="crossfadeSlider" min="0" max="10" value="2" step="0.5">
+                        <span id="crossfadeValue">2s</span>
+                    </div>
+                    <div class="setting-item">
+                        <label>Equalizer Presets</label>
+                        <select id="equalizerSelect">
+                            <option value="flat">Flat</option>
+                            <option value="rock">Rock</option>
+                            <option value="pop">Pop</option>
+                            <option value="jazz">Jazz</option>
+                            <option value="classical">Classical</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="settings-panel" id="visualizer-panel">
+                    <h3>Visualizer Settings</h3>
+                    <div class="setting-item">
+                        <label>Visualizer Style</label>
+                        <select id="visualizerStyle">
+                            <option value="bars">Bars</option>
+                            <option value="wave">Wave</option>
+                            <option value="circular">Circular</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label>Color Mode</label>
+                        <select id="visualizerColor">
+                            <option value="gradient">Gradient</option>
+                            <option value="solid">Solid</option>
+                            <option value="rainbow">Rainbow</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="settings-backdrop"></div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 The Hollow Choir. All rights reserved.</p>
+            <p> echoes from the void </p>
+        </div>
+    </footer>
+
+
+
+    <audio id="audioPlayer" preload="metadata">
+        <source src="Audio/The_Hollow_Choir.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <script src="script.js"></script>
+</body>
+</html>
