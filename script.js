@@ -192,18 +192,22 @@ class AudioPlayer {
         }
     }
     
-    play() {
-        this.audio.play();
-        this.isPlaying = true;
-        this.playPauseBtn.querySelector('.icon').textContent = '⏸';
-        document.querySelector('.vinyl-record').classList.add('spinning');
-        
-        if (!this.audioContext) {
-            this.setupAudioContext();
+    async play() {
+        try {
+            await this.audio.play();
+            this.isPlaying = true;
+            this.playPauseBtn.querySelector('.icon').textContent = '⏸';
+            document.querySelector('.vinyl-record').classList.add('spinning');
+            
+            if (!this.audioContext) {
+                this.setupAudioContext();
+            }
+            
+            this.updatePlaylistVisualState();
+            this.visualize();
+        } catch (error) {
+            console.error('Audio playback failed:', error);
         }
-        
-        this.updatePlaylistVisualState();
-        this.visualize();
     }
     
     pause() {
@@ -294,43 +298,6 @@ class AudioPlayer {
             icon.textContent = '🔇';
         } else {
             icon.textContent = '🔊';
-        }
-    }
-    
-    setupCanvas() {
-        this.canvas.width = this.canvas.offsetWidth;
-        this.canvas.height = this.canvas.offsetHeight;
-    }
-    
-    visualize() {
-        if (!this.isPlaying) return;
-        
-        requestAnimationFrame(() => this.visualize());
-        
-        if (!this.analyser) return;
-        
-        this.analyser.getByteFrequencyData(this.dataArray);
-        
-        const bufferLength = this.analyser.frequencyBinCount;
-        const barWidth = (this.canvas.width / bufferLength) * 2.5;
-        let barHeight;
-        let x = 0;
-        
-        this.ctx.fillStyle = 'rgba(22, 33, 62, 0.2)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        for (let i = 0; i < bufferLength; i++) {
-            barHeight = (this.dataArray[i] / 255) * this.canvas.height * 0.7;
-            
-            const gradient = this.ctx.createLinearGradient(0, this.canvas.height - barHeight, 0, this.canvas.height);
-            gradient.addColorStop(0, '#e94560');
-            gradient.addColorStop(0.5, '#8b5cf6');
-            gradient.addColorStop(1, '#667eea');
-            
-            this.ctx.fillStyle = gradient;
-            this.ctx.fillRect(x, this.canvas.height - barHeight, barWidth - 2, barHeight);
-            
-            x += barWidth;
         }
     }
     
@@ -460,8 +427,16 @@ class AudioPlayer {
     }
     
     setupCanvas() {
-        this.canvas.width = this.canvas.offsetWidth;
-        this.canvas.height = this.canvas.offsetHeight;
+        this.canvas.width = this.canvas.offsetWidth * window.devicePixelRatio;
+        this.canvas.height = this.canvas.offsetHeight * window.devicePixelRatio;
+        this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            this.canvas.width = this.canvas.offsetWidth * window.devicePixelRatio;
+            this.canvas.height = this.canvas.offsetHeight * window.devicePixelRatio;
+            this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        });
     }
     
     setupAudioContext() {
@@ -472,6 +447,30 @@ class AudioPlayer {
         this.source.connect(this.analyser);
         this.analyser.connect(this.audioContext.destination);
         this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+    }
+    setupAudioContext() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.analyser = this.audioContext.createAnalyser();
+            this.analyser.fftSize = 256;
+            
+            // Resume context if it was suspended
+            if (this.audioContext.state === 'suspended') {
+                this.audioContext.resume();
+            }
+            
+            // Create audio source and connect analyser
+            this.source = this.audioContext.createMediaElementSource(this.audio);
+            this.source.connect(this.analyser);
+            this.analyser.connect(this.audioContext.destination);
+            
+            // Initialize data array for frequency analysis
+            this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+            
+            console.log('Audio context setup successful');
+        } catch (error) {
+            console.error('Audio context setup failed:', error);
+        }
     }
     
     updateVisualizerMode() {
@@ -517,14 +516,14 @@ class AudioPlayer {
             this.ctx.fillStyle = 'rgba(22, 33, 62, 0.2)';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             
-            this.ctx.strokeStyle = '#e94560';
+            this.ctx.strokeStyle = this.getVisualizerColor();
             this.ctx.lineWidth = 2;
             this.ctx.beginPath();
             
             const sliceWidth = this.canvas.width / bufferLength;
             for (let i = 0; i < bufferLength; i++) {
                 const v = this.dataArray[i] / 128.0;
-                const y = (v + 1) / 2.0;
+                const y = v * this.canvas.height;
                 
                 if (i === 0) {
                     this.ctx.moveTo(0, y);
@@ -549,7 +548,7 @@ class AudioPlayer {
                 const x1 = centerX + Math.cos(angle) * radius * amplitude;
                 const y1 = centerY + Math.sin(angle) * radius * amplitude * 0.8;
                 const x2 = centerX + Math.cos(angle + 0.1) * radius * amplitude;
-                const y3 = centerY + Math.sin(angle + 0.2) * radius * amplitude * 0.8;
+                const y2 = centerY + Math.sin(angle + 0.1) * radius * amplitude * 0.8;
                 
                 this.ctx.strokeStyle = this.getVisualizerColor();
                 this.ctx.lineWidth = 2;
@@ -557,10 +556,34 @@ class AudioPlayer {
                 this.ctx.moveTo(centerX, centerY);
                 this.ctx.lineTo(x1, y1);
                 this.ctx.lineTo(x2, y2);
-                this.ctx.lineTo(x3, y3);
                 this.ctx.stroke();
             }
         } else {
+            // Default bars visualization
+            const barWidth = (this.canvas.width / bufferLength) * 2.5;
+            let barHeight;
+            let x = 0;
+            
+            this.ctx.fillStyle = 'rgba(22, 33, 62, 0.2)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            for (let i = 0; i < bufferLength; i++) {
+                barHeight = (this.dataArray[i] / 255) * this.canvas.height * 0.7;
+                
+                if (this.visualizerColorMode === 'gradient') {
+                    const gradient = this.ctx.createLinearGradient(0, this.canvas.height - barHeight, 0, this.canvas.height);
+                    gradient.addColorStop(0, '#e94560');
+                    gradient.addColorStop(0.5, '#8b5cf6');
+                    gradient.addColorStop(1, '#667eea');
+                    this.ctx.fillStyle = gradient;
+                } else {
+                    this.ctx.fillStyle = this.getVisualizerColor();
+                }
+                
+                this.ctx.fillRect(x, this.canvas.height - barHeight, barWidth - 2, barHeight);
+                
+                x += barWidth;
+            }
         }
     }
     
@@ -570,7 +593,7 @@ class AudioPlayer {
         } else if (this.visualizerColorMode === 'solid') {
             return '#8b5cf6';
         } else {
-            return 'gradient';
+            return '#667eea';
         }
     }
     
@@ -625,15 +648,6 @@ class AudioPlayer {
         return `${minutes}:${secs.toString().padStart(2, '0')}`;
     }
     
-    setupAudioContext() {
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        this.analyser = this.audioContext.createAnalyser();
-        this.analyser.fftSize = 256;
-        this.source = this.audioContext.createMediaElementSource(this.audio);
-        this.source.connect(this.analyser);
-        this.analyser.connect(this.audioContext.destination);
-        this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-    }
 }
 
 class InteractiveEffects {
@@ -1037,16 +1051,22 @@ class NewsletterForm {
 
 class FunInteractions {
     constructor() {
-        this.setupKonamiCode();
         this.secretMode = false;
+        this.partyMode = false;
+        this.logoClicks = 0;
+        this.konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+        this.konamiIndex = 0;
+        
+        this.setupKonamiCode();
+        this.setupLogoInteractions();
+        this.setupPartyMode();
+        this.setupClickEffects();
+        this.setupLogoHover();
     }
     
     setupKonamiCode() {
-        this.konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
-        this.konamiIndex = 0;
-        this.secretMode = false;
-        
         document.addEventListener('keydown', (e) => {
+            // Konami Code
             if (e.key === this.konamiCode[this.konamiIndex]) {
                 this.konamiIndex++;
                 if (this.konamiIndex === this.konamiCode.length) {
@@ -1056,6 +1076,59 @@ class FunInteractions {
             } else {
                 this.konamiIndex = 0;
             }
+        });
+    }
+    
+    setupLogoInteractions() {
+        const topLogo = document.querySelector('.logo');
+        const heroLogo = document.querySelector('.band-name');
+        
+        if (topLogo) {
+            topLogo.addEventListener('click', () => {
+                this.logoClicks++;
+                if (this.logoClicks >= 3) {
+                    this.danceLogo();
+                    this.logoClicks = 0;
+                }
+            });
+        }
+    }
+    
+    setupLogoHover() {
+        const heroLogo = document.querySelector('.band-name');
+        if (heroLogo) {
+            heroLogo.addEventListener('mouseenter', () => {
+                heroLogo.style.textShadow = '0 0 30px #8b5cf6, 0 0 60px #8b5cf6, 0 0 90px #8b5cf6';
+                heroLogo.style.transform = 'scale(1.05)';
+                heroLogo.style.transition = 'all 0.3s ease';
+            });
+            
+            heroLogo.addEventListener('mouseleave', () => {
+                heroLogo.style.textShadow = '';
+                heroLogo.style.transform = '';
+            });
+        }
+    }
+    
+    setupPartyMode() {
+        document.addEventListener('keydown', (e) => {
+            if (e.shiftKey && e.key === 'P') {
+                this.togglePartyMode();
+            }
+        });
+    }
+    
+    setupClickEffects() {
+        // Single click - musical emojis
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('button') || e.target.closest('a')) return;
+            this.showMusicalEmoji(e.clientX, e.clientY);
+        });
+        
+        // Double click - fireworks
+        document.addEventListener('dblclick', (e) => {
+            if (e.target.closest('button') || e.target.closest('a')) return;
+            this.createFirework(e.clientX, e.clientY);
         });
     }
     
@@ -1084,22 +1157,11 @@ class FunInteractions {
         const notifyStyle = document.createElement('style');
         notifyStyle.textContent = `
             @keyframes secret-notify {
-                0% {
-                    transform: translate(-50%, -50%) scale(0) rotate(0deg);
-                    opacity: 0;
-                }
-                50% {
-                    transform: translate(-50%, -50%) scale(1.2) rotate(180deg);
-                    opacity: 1;
-                }
-                100% {
-                    transform: translate(-50%, -50%) scale(1) rotate(360deg);
-                    opacity: 0;
-                }
+                0% { transform: translate(-50%, -50%) scale(0) rotate(0deg); opacity: 0; }
+                50% { transform: translate(-50%, -50%) scale(1.2) rotate(180deg); opacity: 1; }
+                100% { transform: translate(-50%, -50%) scale(1) rotate(360deg); opacity: 0; }
             }
-            .secret-mode {
-                animation: rainbow-bg 3s linear infinite;
-            }
+            .secret-mode { animation: rainbow-bg 3s linear infinite; }
             @keyframes rainbow-bg {
                 0% { filter: hue-rotate(0deg); }
                 100% { filter: hue-rotate(360deg); }
@@ -1124,23 +1186,31 @@ class FunInteractions {
             setTimeout(() => {
                 const confetti = document.createElement('div');
                 confetti.className = 'firework-particle';
-                confetti.style.left = Math.random() * 100 + '%';
-                confetti.style.top = '-20px';
-                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
-                confetti.style.width = '10px';
-                confetti.style.height = '10px';
-                confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+                confetti.style.cssText = `
+                    position: fixed;
+                    left: ${Math.random() * 100}%;
+                    top: -20px;
+                    width: 10px;
+                    height: 10px;
+                    background: ${colors[Math.floor(Math.random() * colors.length)]};
+                    border-radius: 50%;
+                    pointer-events: none;
+                    z-index: 9999;
+                    animation: fall ${2 + Math.random() * 2}s linear forwards;
+                `;
                 
-                const style = document.createElement('style');
-                if (!document.querySelector('.firework-styles')) {
-                    style.className = 'firework-styles';
+                if (!document.querySelector('.confetti-styles')) {
+                    const style = document.createElement('style');
+                    style.className = 'confetti-styles';
                     style.textContent = `
+                        @keyframes fall {
+                            to {
+                                transform: translateY(100vh) rotate(360deg);
+                                opacity: 0;
+                            }
+                        }
                         .firework-particle {
                             position: fixed;
-                            width: 6px;
-                            height: 6px;
-                            border-radius: 50%;
-                            transform: translate(-50%, -50%);
                             pointer-events: none;
                             z-index: 9999;
                         }
@@ -1149,8 +1219,216 @@ class FunInteractions {
                 }
                 
                 document.body.appendChild(confetti);
-                setTimeout(() => confetti.remove(), 3000);
+                setTimeout(() => confetti.remove(), 4000);
             }, i * 100);
+        }
+    }
+    
+    danceLogo() {
+        const logos = document.querySelectorAll('.logo, .band-name');
+        logos.forEach(logo => {
+            logo.style.animation = 'logo-dance 2s ease-in-out';
+            setTimeout(() => {
+                logo.style.animation = '';
+            }, 2000);
+        });
+        
+        const danceStyle = document.createElement('style');
+        danceStyle.textContent = `
+            @keyframes logo-dance {
+                0%, 100% { transform: rotate(0deg) scale(1); }
+                25% { transform: rotate(-10deg) scale(1.1); }
+                50% { transform: rotate(10deg) scale(1.2); }
+                75% { transform: rotate(-5deg) scale(1.1); }
+            }
+        `;
+        document.head.appendChild(danceStyle);
+    }
+    
+    togglePartyMode() {
+        this.partyMode = !this.partyMode;
+        
+        if (this.partyMode) {
+            document.body.classList.add('party-mode');
+            this.intenseRainbowFlash();
+            
+            const notification = document.createElement('div');
+            notification.textContent = '🎉 PARTY MODE ACTIVATED! 🎉';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #ff6b6b, #4ecdc4, #667eea);
+                color: white;
+                padding: 15px 25px;
+                border-radius: 15px;
+                font-weight: bold;
+                z-index: 10000;
+                animation: slide-in 0.5s ease-out;
+            `;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        } else {
+            document.body.classList.remove('party-mode');
+            this.stopPartyEffects();
+        }
+    }
+    
+    intenseRainbowFlash() {
+        document.body.classList.add('intense-rainbow');
+        
+        const rainbowStyle = document.createElement('style');
+        rainbowStyle.className = 'rainbow-flash-style';
+        rainbowStyle.textContent = `
+            .intense-rainbow {
+                animation: intense-rainbow-flash 6s linear !important;
+            }
+            @keyframes intense-rainbow-flash {
+                0% { filter: hue-rotate(0deg) brightness(2) saturate(3); }
+                2% { filter: hue-rotate(15deg) brightness(2.5) saturate(4); }
+                4% { filter: hue-rotate(30deg) brightness(2.2) saturate(3.5); }
+                6% { filter: hue-rotate(45deg) brightness(2.8) saturate(4.5); }
+                8% { filter: hue-rotate(60deg) brightness(2.3) saturate(3.8); }
+                10% { filter: hue-rotate(75deg) brightness(3) saturate(5); }
+                12% { filter: hue-rotate(90deg) brightness(2.4) saturate(4); }
+                14% { filter: hue-rotate(105deg) brightness(2.9) saturate(4.8); }
+                16% { filter: hue-rotate(120deg) brightness(2.5) saturate(4.2); }
+                18% { filter: hue-rotate(135deg) brightness(3.2) saturate(5.5); }
+                20% { filter: hue-rotate(150deg) brightness(2.6) saturate(4.4); }
+                22% { filter: hue-rotate(165deg) brightness(3.1) saturate(5.2); }
+                24% { filter: hue-rotate(180deg) brightness(2.7) saturate(4.6); }
+                26% { filter: hue-rotate(195deg) brightness(3.3) saturate(5.8); }
+                28% { filter: hue-rotate(210deg) brightness(2.8) saturate(4.8); }
+                30% { filter: hue-rotate(225deg) brightness(3.4) saturate(6); }
+                32% { filter: hue-rotate(240deg) brightness(2.9) saturate(5); }
+                34% { filter: hue-rotate(255deg) brightness(3.5) saturate(6.2); }
+                36% { filter: hue-rotate(270deg) brightness(3) saturate(5.2); }
+                38% { filter: hue-rotate(285deg) brightness(3.6) saturate(6.4); }
+                40% { filter: hue-rotate(300deg) brightness(3.1) saturate(5.4); }
+                42% { filter: hue-rotate(315deg) brightness(3.7) saturate(6.6); }
+                44% { filter: hue-rotate(330deg) brightness(3.2) saturate(5.6); }
+                46% { filter: hue-rotate(345deg) brightness(3.8) saturate(6.8); }
+                48% { filter: hue-rotate(360deg) brightness(3.3) saturate(5.8); }
+                50% { filter: hue-rotate(15deg) brightness(3.9) saturate(7); }
+                52% { filter: hue-rotate(30deg) brightness(3.4) saturate(6); }
+                54% { filter: hue-rotate(45deg) brightness(4) saturate(7.2); }
+                56% { filter: hue-rotate(60deg) brightness(3.5) saturate(6.2); }
+                58% { filter: hue-rotate(75deg) brightness(4.1) saturate(7.4); }
+                60% { filter: hue-rotate(90deg) brightness(3.6) saturate(6.4); }
+                62% { filter: hue-rotate(105deg) brightness(4.2) saturate(7.6); }
+                64% { filter: hue-rotate(120deg) brightness(3.7) saturate(6.6); }
+                66% { filter: hue-rotate(135deg) brightness(4.3) saturate(7.8); }
+                68% { filter: hue-rotate(150deg) brightness(3.8) saturate(6.8); }
+                70% { filter: hue-rotate(165deg) brightness(4.4) saturate(8); }
+                72% { filter: hue-rotate(180deg) brightness(3.9) saturate(7); }
+                74% { filter: hue-rotate(195deg) brightness(4.5) saturate(8.2); }
+                76% { filter: hue-rotate(210deg) brightness(4) saturate(7.2); }
+                78% { filter: hue-rotate(225deg) brightness(4.6) saturate(8.4); }
+                80% { filter: hue-rotate(240deg) brightness(4.1) saturate(7.4); }
+                82% { filter: hue-rotate(255deg) brightness(4.7) saturate(8.6); }
+                84% { filter: hue-rotate(270deg) brightness(4.2) saturate(7.6); }
+                86% { filter: hue-rotate(285deg) brightness(4.8) saturate(8.8); }
+                88% { filter: hue-rotate(300deg) brightness(4.3) saturate(7.8); }
+                90% { filter: hue-rotate(315deg) brightness(4.9) saturate(9); }
+                92% { filter: hue-rotate(330deg) brightness(4.4) saturate(8); }
+                94% { filter: hue-rotate(345deg) brightness(5) saturate(9.2); }
+                96% { filter: hue-rotate(360deg) brightness(4.5) saturate(8.2); }
+                100% { filter: hue-rotate(360deg) brightness(1) saturate(1); }
+            }
+        `;
+        document.head.appendChild(rainbowStyle);
+        
+        setTimeout(() => {
+            document.body.classList.remove('intense-rainbow');
+            rainbowStyle.remove();
+        }, 6000);
+    }
+    
+
+    
+    createRandomBurst() {
+        const x = Math.random() * window.innerWidth;
+        const y = Math.random() * window.innerHeight;
+        this.createFirework(x, y);
+    }
+    
+    showMusicalEmoji(x, y) {
+        const emojis = ['🎵', '🎶', '🎤', '🎸', '🎹', '🥁', '🎺', '🎻', '🎷'];
+        const emoji = document.createElement('div');
+        emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        emoji.style.cssText = `
+            position: fixed;
+            left: ${x}px;
+            top: ${y}px;
+            font-size: 24px;
+            pointer-events: none;
+            z-index: 9999;
+            animation: emoji-float 2s ease-out forwards;
+        `;
+        
+        const emojiStyle = document.createElement('style');
+        if (!document.querySelector('.emoji-styles')) {
+            emojiStyle.className = 'emoji-styles';
+            emojiStyle.textContent = `
+                @keyframes emoji-float {
+                    0% { transform: translateY(0) scale(0); opacity: 1; }
+                    50% { transform: translateY(-50px) scale(1.5); opacity: 1; }
+                    100% { transform: translateY(-100px) scale(1); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(emojiStyle);
+        }
+        
+        document.body.appendChild(emoji);
+        setTimeout(() => emoji.remove(), 2000);
+    }
+    
+    createFirework(x, y) {
+        const colors = ['#ff6b6b', '#4ecdc4', '#667eea', '#10b981', '#f59e0b', '#ef4444'];
+        const particleCount = 30;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'firework-particle';
+            
+            const angle = (Math.PI * 2 * i) / particleCount;
+            const velocity = 5 + Math.random() * 5;
+            const vx = Math.cos(angle) * velocity;
+            const vy = Math.sin(angle) * velocity;
+            
+            particle.style.cssText = `
+                position: fixed;
+                left: ${x}px;
+                top: ${y}px;
+                width: 6px;
+                height: 6px;
+                background: ${colors[Math.floor(Math.random() * colors.length)]};
+                border-radius: 50%;
+                pointer-events: none;
+                z-index: 9999;
+                box-shadow: 0 0 6px ${colors[Math.floor(Math.random() * colors.length)]};
+            `;
+            
+            if (!document.querySelector('.firework-styles')) {
+                const style = document.createElement('style');
+                style.className = 'firework-styles';
+                style.textContent = `
+                    .firework-particle {
+                        animation: firework-explode 1s ease-out forwards;
+                    }
+                    @keyframes firework-explode {
+                        0% { transform: translate(0, 0) scale(1); opacity: 1; }
+                        100% { transform: translate(var(--tx, 0), var(--ty, 100px)) scale(0); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            particle.style.setProperty('--tx', `${vx * 20}px`);
+            particle.style.setProperty('--ty', `${vy * 20}px`);
+            
+            document.body.appendChild(particle);
+            setTimeout(() => particle.remove(), 1000);
         }
     }
 }
@@ -1201,4 +1479,7 @@ window.addEventListener('load', function() {
     new RhythmGame();
     new BandMemberSounds();
     new BandModal();
+    console.log('About to create FunInteractions');
+    new FunInteractions();
+    console.log('FunInteractions created');
 });
